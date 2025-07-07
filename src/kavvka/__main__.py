@@ -4,7 +4,7 @@ import json
 import argparse
 import subprocess
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Dict, Any, Tuple
 import logging
 from datetime import datetime
 import shutil
@@ -13,11 +13,24 @@ import pyperclip  # 用于复制到剪贴板
 # 尝试导入依赖，如果不存在则提供友好的错误信息
 try:
     from loguru import logger
+    from rich.console import Console
+    from rich.tree import Tree
+    from rich.panel import Panel
+    from rich import print as rprint
+    from rich.prompt import Confirm
+    import typer
+    from rich.json import JSON
 except ImportError as e:
     module_name = str(e).split("'")[1]
     print(f"错误: 缺少必要的依赖 '{module_name}'")
-    print("请安装所需依赖: pip install loguru pyperclip")
+    print("请安装所需依赖: pip install loguru pyperclip rich typer")
     sys.exit(1)
+
+# 创建rich控制台
+console = Console()
+
+# 创建typer应用
+app = typer.Typer(help="Kavvka - Czkawka辅助工具，用于处理图片文件夹并生成路径")
 
 def parse_args():
     """解析命令行参数
@@ -83,7 +96,7 @@ def setup_logger(app_name="app", project_root=None, console_output=True):
     return logger
 
 # 设置日志
-logger = setup_logger(app_name="artfilter", console_output=True)
+logger = setup_logger(app_name="kavvka", console_output=True)
 
 # 加载配置文件
 def load_config(config_path=None):
@@ -294,29 +307,70 @@ def create_compare_folder(base_path: Path) -> Path:
     """
     compare_folder = base_path / "#compare"
     compare_folder.mkdir(exist_ok=True)
-    logger.info(f"✅ 创建比较文件夹: {compare_folder}")
+    console.print(f"[green]✅ 创建比较文件夹:[/green] [cyan]{compare_folder}[/cyan]")
     return compare_folder
 
-def move_folders_to_compare(base_path: Path, artist_folder: Path) -> List[Path]:
-    """将除了画师文件夹外的其他同级文件夹移动到#compare文件夹
+def move_folders_to_compare(folders_to_move: List[Path], artist_folder: Path, compare_folder: Path, force: bool = False) -> Dict[str, Any]:
+    """将指定的文件夹移动到#compare文件夹
     
     Args:
-        base_path: 基础路径
+        folders_to_move: 要移动的文件夹列表
         artist_folder: 画师文件夹路径
+        compare_folder: 比较文件夹路径
+        force: 是否强制移动，不询问确认
         
     Returns:
-        List[Path]: 移动后的文件夹路径列表
+        Dict[str, Any]: 包含移动结果的JSON格式数据
     """
-    compare_folder = create_compare_folder(base_path)
     moved_folders = []
+    result_data = {
+        "artist_folder": str(artist_folder),
+        "compare_folder": str(compare_folder),
+        "folders_to_move": [str(f) for f in folders_to_move],
+        "moved_folders": [],
+        "success": True,
+        "message": "",
+        "error_folders": []
+    }
     
-    # 遍历基础路径下的所有目录
-    for entry in base_path.iterdir():
-        # 跳过非目录、画师文件夹本身和#compare文件夹
-        if not entry.is_dir() or entry.resolve() == artist_folder.resolve() or entry.name == "#compare":
-            continue
+    # 如果没有需要移动的文件夹，直接返回
+    if not folders_to_move:
+        logger.info("❌ 没有需要移动的文件夹")
+        result_data["success"] = False
+        result_data["message"] = "没有需要移动的文件夹"
+        return result_data
+    
+    # 创建文件夹树结构
+    tree = Tree(f"[bold blue]{artist_folder}[/bold blue]")
+    artist_node = tree.add(f"[bold green]{artist_folder.name}[/bold green] (画师文件夹)")
+    compare_node = tree.add(f"[bold cyan]#compare[/bold cyan] (比较文件夹)")
+    
+    # 添加到树结构中
+    for entry in folders_to_move:
+        target_path = compare_folder / entry.name
         
-        # 移动文件夹到#compare
+        # 如果目标路径已存在，添加时间戳后缀
+        if target_path.exists():
+            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+            target_path = compare_folder / f"{entry.name}_{timestamp}"
+        
+        folder_node = tree.add(f"[bold red]{entry.name}[/bold red] (将移动到 #compare)")
+        compare_node.add(f"[bold yellow]{target_path.name}[/bold yellow] (移动后)")
+    
+    # 显示树结构
+    console.print("\n将执行以下文件夹移动操作:")
+    console.print(tree)
+    console.print(f"\n共有 [bold red]{len(folders_to_move)}[/bold red] 个文件夹将被移动到 [bold cyan]#compare[/bold cyan] 文件夹")
+    
+    # 询问用户是否确认移动
+    if not force and not Confirm.ask("是否确认移动上述文件夹?"):
+        logger.info("❌ 用户取消移动操作")
+        result_data["success"] = False
+        result_data["message"] = "用户取消移动操作"
+        return result_data
+    
+    # 执行移动操作
+    for entry in folders_to_move:
         try:
             target_path = compare_folder / entry.name
             
@@ -330,10 +384,24 @@ def move_folders_to_compare(base_path: Path, artist_folder: Path) -> List[Path]:
             logger.info(f"✅ 已移动文件夹: {entry} -> {target_path}")
             moved_folders.append(target_path)
             
+            # 添加到结果数据中
+            result_data["moved_folders"].append({
+                "source": str(entry),
+                "target": str(target_path),
+                "success": True
+            })
+            
         except Exception as e:
             logger.error(f"❌ 移动文件夹 {entry} 时出错: {e}")
+            result_data["error_folders"].append({
+                "folder": str(entry),
+                "error": str(e)
+            })
     
-    return moved_folders
+    result_data["success"] = len(moved_folders) > 0
+    result_data["message"] = f"成功移动了 {len(moved_folders)} 个文件夹"
+    
+    return result_data
 
 def find_artist_folders_for_path(path: Path) -> List[Path]:
     """查找给定路径可能对应的画师文件夹列表
@@ -377,16 +445,17 @@ def find_artist_folders_for_path(path: Path) -> List[Path]:
         return []
 
 def batch_get_artist_folders(paths: List[str]) -> dict:
-    """批量获取所有路径对应的画师文件夹
+    """批量获取所有路径对应的画师文件夹和同级文件夹
     
     Args:
         paths: 输入路径列表
         
     Returns:
-        dict: 路径到画师文件夹的映射
+        dict: 路径到(画师文件夹, 同级文件夹列表)的映射
     """
     path_to_folders = {}
     path_to_selected = {}
+    path_to_siblings = {}  # 存储同级文件夹
     
     # 首先收集所有路径可能的画师文件夹
     for path in paths:
@@ -402,19 +471,54 @@ def batch_get_artist_folders(paths: List[str]) -> dict:
         path_to_folders[path] = folders
         # 默认选择第一个找到的画师文件夹
         path_to_selected[path] = folders[0]
+        
+        # 获取同级文件夹（除了画师文件夹和#compare外的所有文件夹）
+        path_obj = Path(path)
+        if path_obj.is_dir():
+            parent_dir = path_obj.parent
+            siblings = []
+            for entry in parent_dir.iterdir():
+                if (entry.is_dir() and 
+                    entry.resolve() != path_obj.resolve() and 
+                    entry.name != "#compare" and 
+                    not (('[' in entry.name) and (']' in entry.name))):
+                    siblings.append(entry)
+            path_to_siblings[path] = siblings
     
     # 显示所有路径和对应的画师文件夹
     while True:
-        print("\n当前所有路径及其对应的画师文件夹:")
+        console.print("\n[bold cyan]当前所有路径及其对应的画师文件夹:[/bold cyan]")
+        
         for i, path in enumerate(path_to_folders.keys(), 1):
-            print(f"\n{i}. 路径: {path}")
-            print(f"   当前选择的画师文件夹: {path_to_selected[path]}")
-            print("   可选的画师文件夹:")
+            # 创建每个路径的树结构
+            path_tree = Tree(f"[bold blue]{i}. 路径: {path}[/bold blue]")
+            
+            # 添加当前选择的画师文件夹（绿色高亮）
+            current_folder = path_to_selected[path]
+            path_tree.add(f"[bold green]当前选择: {current_folder}[/bold green]")
+            
+            # 添加可选的画师文件夹
+            folders_node = path_tree.add("[bold yellow]可选的画师文件夹:[/bold yellow]")
             for j, folder in enumerate(path_to_folders[path], 1):
-                print(f"      {j}. {folder}")
+                style = "bold green" if folder == current_folder else "white"
+                folders_node.add(f"[{style}]{j}. {folder}[/{style}]")
+            
+            # 添加同级文件夹
+            if path in path_to_siblings and path_to_siblings[path]:
+                siblings_node = path_tree.add("[bold magenta]同级文件夹 (将被移动):[/bold magenta]")
+                for sibling in path_to_siblings[path]:
+                    siblings_node.add(f"[red]{sibling.name}[/red]")
+                
+            # 显示树
+            console.print(path_tree)
         
         # 让用户选择是否需要修改
-        choice = input("\n请输入'序号 画师文件夹序号'来修改对应关系（例如：'1 2'表示修改第1个路径为其第2个画师文件夹）\n直接回车确认所有选择，输入q退出: ").strip()
+        console.print("\n[bold cyan]操作提示:[/bold cyan]")
+        console.print("- 输入 [bold]'序号 画师文件夹序号'[/bold] 来修改对应关系（例如：[bold]'1 2'[/bold] 表示修改第1个路径为其第2个画师文件夹）")
+        console.print("- 直接回车确认所有选择")
+        console.print("- 输入 [bold red]q[/bold red] 退出")
+        
+        choice = input("\n请输入选择: ").strip()
         
         if not choice:
             break
@@ -430,15 +534,21 @@ def batch_get_artist_folders(paths: List[str]) -> dict:
                     path_to_selected[path] = folders[folder_idx - 1]
                     logger.info(f"✅ 已更新: {path} -> {folders[folder_idx - 1]}")
                 else:
-                    logger.info("❌ 无效的画师文件夹序号")
+                    console.print("[bold red]❌ 无效的画师文件夹序号[/bold red]")
             else:
-                logger.info("❌ 无效的路径序号")
+                console.print("[bold red]❌ 无效的路径序号[/bold red]")
         except ValueError:
-            logger.info("❌ 输入格式错误，请使用'序号 画师文件夹序号'的格式")
+            console.print("[bold red]❌ 输入格式错误，请使用'序号 画师文件夹序号'的格式[/bold red]")
     
-    return path_to_selected
+    # 返回包含画师文件夹和同级文件夹的结果
+    result = {}
+    for path, artist_folder in path_to_selected.items():
+        siblings = path_to_siblings.get(path, [])
+        result[path] = (artist_folder, siblings)
+    
+    return result
 
-def generate_czkawka_paths(artist_folder: Path, compare_folder: Path) -> str:
+def generate_czkawka_paths(artist_folder: Path, compare_folder: Path) -> Dict[str, Any]:
     """生成czkawka路径字符串（用分号连接）
     
     Args:
@@ -446,19 +556,27 @@ def generate_czkawka_paths(artist_folder: Path, compare_folder: Path) -> str:
         compare_folder: 比较文件夹路径
         
     Returns:
-        str: 用分号连接的路径字符串
+        Dict[str, Any]: 包含路径信息的JSON格式数据
     """
     # 确保路径字符串不包含转义字符问题
     artist_path = str(artist_folder).replace('\\', '/')
     compare_path = str(compare_folder).replace('\\', '/')
-    return f"{artist_path};{compare_path}"
+    paths_str = f"{artist_path};{compare_path}"
+    
+    return {
+        "artist_folder": artist_path,
+        "compare_folder": compare_path,
+        "combined_path": paths_str
+    }
 
-def display_path_panel(paths_str: str):
+def display_path_panel(paths_data: Dict[str, Any]):
     """在终端显示路径面板，并复制到剪贴板
     
     Args:
-        paths_str: 路径字符串
+        paths_data: 包含路径信息的JSON格式数据
     """
+    paths_str = paths_data["combined_path"]
+    
     # 复制到剪贴板
     try:
         pyperclip.copy(paths_str)
@@ -467,16 +585,120 @@ def display_path_panel(paths_str: str):
         logger.error(f"❌ 复制到剪贴板失败: {e}")
     
     # 显示路径面板
-    print("\n" + "=" * 80)
-    print("Czkawka 路径 (已复制到剪贴板)")
-    print("=" * 80)
-    print(paths_str)
-    print("=" * 80 + "\n")
+    panel = Panel(
+        f"[bold white]{paths_str}[/bold white]", 
+        title="[bold green]Czkawka 路径 (已复制到剪贴板)[/bold green]",
+        border_style="cyan",
+        expand=False
+    )
+    console.print(panel)
 
-def main():
-    """主函数"""
+@app.command()
+def process(
+    paths: List[str] = typer.Argument(None, help="要处理的路径列表"),
+    force: bool = typer.Option(False, "--force", "-f", help="强制移动文件夹，不询问确认"),
+    output_json: bool = typer.Option(False, "--json", "-j", help="以JSON格式输出结果")
+):
+    """处理指定的路径，查找画师文件夹并移动其他文件夹到#compare文件夹"""
+    if not paths:
+        console.print("[bold red]❌ 未提供任何路径[/bold red]")
+        return
+        
+    console.print("\n[bold green]🚀 开始处理...[/bold green]")
+    
+    # 批量获取并确认画师文件夹
+    path_to_artist = batch_get_artist_folders(paths)
+    if not path_to_artist:
+        console.print("[bold red]❌ 用户取消操作[/bold red]")
+        return
+    
+    # 处理每个路径
+    success_count = 0
+    total_count = len(path_to_artist)
+    
+    # 用于收集所有处理结果的JSON数据
+    all_results = {
+        "total_paths": total_count,
+        "success_count": 0,
+        "results": []
+    }
+    
+    for i, (path, (artist_folder, siblings)) in enumerate(path_to_artist.items(), 1):
+        console.rule(f"[bold blue]处理第 {i}/{total_count} 个路径[/bold blue]")
+        console.print(f"[cyan]路径:[/cyan] [white]{path}[/white]")
+        console.print(f"[cyan]画师文件夹:[/cyan] [green]{artist_folder}[/green]")
+        
+        # 更新进度
+        progress = int((i - 1) / total_count * 100)
+        console.print(f"[cyan]总路径数:[/cyan] [white]{total_count}[/white] [cyan]已处理:[/cyan] [white]{i-1}[/white] [cyan]成功:[/cyan] [green]{success_count}[/green] [cyan]总进度:[/cyan] [yellow]{progress}%[/yellow]")
+        
+        # 创建比较文件夹
+        compare_folder = create_compare_folder(artist_folder)
+        
+        # 收集当前路径的处理结果
+        path_result = {
+            "path": str(path),
+            "artist_folder": str(artist_folder),
+            "compare_folder": str(compare_folder),
+            "move_result": None,
+            "czkawka_paths": None,
+            "success": False
+        }
+        
+        # 移动同级文件夹到#compare文件夹
+        move_result = move_folders_to_compare(siblings, artist_folder, compare_folder, force)
+        path_result["move_result"] = move_result
+        
+        if move_result["success"]:
+            console.print(f"[green]✅ 已移动 {len(move_result['moved_folders'])} 个文件夹到比较文件夹[/green]")
+        
+        # 生成czkawka路径字符串并显示
+        paths_data = generate_czkawka_paths(artist_folder, compare_folder)
+        path_result["czkawka_paths"] = paths_data
+        display_path_panel(paths_data)
+        
+        # 更新成功状态
+        path_result["success"] = True
+        success_count += 1
+        
+        # 添加到总结果中
+        all_results["results"].append(path_result)
+        
+        # 更新最终进度
+        progress = int(i / total_count * 100)
+        console.print(f"[cyan]总路径数:[/cyan] [white]{total_count}[/white] [cyan]已处理:[/cyan] [white]{i}[/white] [cyan]成功:[/cyan] [green]{success_count}[/green] [cyan]总进度:[/cyan] [yellow]{progress}%[/yellow]")
+    
+    # 更新总结果
+    all_results["success_count"] = success_count
+    
+    # 输出总结
+    console.print(f"\n[bold green]✅ 所有处理完成: 成功 {success_count}/{total_count}[/bold green]")
+    
+    # 如果需要，输出完整的JSON结果
+    if output_json:
+        console.print("\n[bold cyan]完整处理结果 (JSON):[/bold cyan]")
+        console.print(JSON.from_data(all_results))
+        
+        # 将JSON结果保存到文件
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        json_file = Path(f"kavvka_result_{timestamp}.json")
+        with open(json_file, "w", encoding="utf-8") as f:
+            json.dump(all_results, f, ensure_ascii=False, indent=2)
+        console.print(f"[green]✅ 结果已保存到文件: {json_file}[/green]")
+    
+    return all_results
+
+@app.command()
+def main(
+    output_json: bool = typer.Option(False, "--json", "-j", help="以JSON格式输出结果")
+):
+    """交互式处理路径，查找画师文件夹并移动其他文件夹到#compare文件夹"""
+    # 显示欢迎信息
+    console.print("\n[bold green]欢迎使用 Kavvka - Czkawka 辅助工具[/bold green]")
+    console.print("[cyan]用于处理图片文件夹并生成路径[/cyan]\n")
+    
     # 获取路径列表
-    print("请输入要处理的路径（每行一个，输入空行结束）:")
+    console.print("[bold yellow]请输入要处理的路径（每行一个，输入空行结束）:[/bold yellow]")
     paths = []
     while True:
         path = input().strip().replace('"', '')
@@ -484,61 +706,12 @@ def main():
             break
         paths.append(path)
     if not paths:
-        print("❌ 未输入任何路径")
+        console.print("[bold red]❌ 未输入任何路径[/bold red]")
         return
         
-    print("🚀 开始处理...")
-    
-    # 批量获取并确认画师文件夹
-    path_to_artist = batch_get_artist_folders(paths)
-    if not path_to_artist:
-        print("❌ 用户取消操作")
-        return
-    
-    # 处理每个路径
-    success_count = 0
-    total_count = len(path_to_artist)
-    
-    for i, (path, artist_folder) in enumerate(path_to_artist.items(), 1):
-        logger.info(f"=== 处理第 {i}/{total_count} 个路径 ===")
-        logger.info(f"路径: {path}")
-        logger.info(f"画师文件夹: {artist_folder}")
-        
-        # 更新进度
-        progress = int((i - 1) / total_count * 100)
-        logger.info(f"总路径数: {total_count} 已处理: {i-1} 成功: {success_count} 总进度: {progress}%")
-        
-        # 创建比较文件夹
-        path_obj = Path(path)
-        compare_folder = create_compare_folder(artist_folder)
-        
-        # 将除了画师文件夹外的其他同级文件夹移动到#compare文件夹
-        moved_folders = move_folders_to_compare(path_obj, artist_folder)
-        logger.info(f"✅ 已移动 {len(moved_folders)} 个文件夹到比较文件夹")
-        
-        # 生成czkawka路径字符串并显示
-        paths_str = generate_czkawka_paths(artist_folder, compare_folder)
-        display_path_panel(paths_str)
-        
-        success_count += 1
-        
-        # 更新最终进度
-        progress = int(i / total_count * 100)
-        logger.info(f"总路径数: {total_count} 已处理: {i} 成功: {success_count} 总进度: {progress}%")
-            
-    logger.info(f"✅ 所有处理完成: 成功 {success_count}/{total_count}")
+    # 调用处理函数
+    return process(paths, output_json=output_json)
 
-# 兼容新的CLI方式
-from .cli import app, interactive
-
+# 入口点
 if __name__ == "__main__":
-    # 如果没有提供参数，直接使用原始的main函数
-    if len(sys.argv) == 1:
-        main()
-    # 否则使用新的CLI
-    else:
-        # 如果第一个参数是-i或--interactive，使用交互模式
-        if len(sys.argv) > 1 and sys.argv[1] in ['-i', '--interactive']:
-            sys.exit(interactive())
-        else:
-            sys.exit(app()) 
+    main()

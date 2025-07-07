@@ -17,5 +17,5 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project.scripts]
-kavvka = "kavvka.__main__:app"
-kvk = "kavvka.__main__:app"
+kavvka = "kavvka.__main__:main"
+kvk = "kavvka.__main__:main"
