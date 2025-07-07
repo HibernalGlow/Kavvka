@@ -1,2 +1,0 @@
-2025-06-17 17:55:28 | 0:00:00.299055 | ℹ️ INFO     | artfilter.__main__:setup_logger:92 - 日志系统已初始化，应用名称: artfilter
-2025-06-17 17:55:28 | 0:00:00.300661 | ℹ️ INFO     | artfilter.__main__:load_config:118 - ✅ 已加载配置文件: D:\1VSCODE\Projects\ImageAll\ImageFilter\src\artfilter\config.json

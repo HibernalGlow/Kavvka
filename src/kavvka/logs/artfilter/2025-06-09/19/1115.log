@@ -1,9 +1,0 @@
-2025-06-09 19:11:15 | 0:00:00.231654 | ℹ️ INFO     | __main__:setup_logger:92 - 日志系统已初始化，应用名称: artfilter
-2025-06-09 19:11:15 | 0:00:00.233655 | ℹ️ INFO     | __main__:load_config:118 - ✅ 已加载配置文件: d:\1VSCODE\Projects\ImageAll\ImageFilter\src\artfilter\config.json
-2025-06-09 19:11:21 | 0:00:06.982973 | ℹ️ INFO     | hashu.utils.hash_process_config:process_artist_folder:211 - [#process_log]执行哈希预热命令:  "hashpre" --workers 2 --path "E:\BaiduNetdiskDownload\备份\250608\[ねいさん]"
-2025-06-09 19:11:24 | 0:00:09.796698 | ℹ️ INFO     | hashu.utils.hash_process_config:process_artist_folder:226 - [#update_log]✅ 找到哈希文件: E:\BaiduNetdiskDownload\备份\250608\[ねいさん]\image_hashes.json
-2025-06-09 19:11:24 | 0:00:09.797694 | ℹ️ INFO     | hashu.utils.hash_process_config:process_duplicates:285 - [#process_log]执行去重复命令:  "batchfilter" --hash_file "E:\BaiduNetdiskDownload\备份\250608\[ねいさん]\image_hashes.json" --max_workers 2 --enable_duplicate_filter --duplicate_filter_mode hash --ref_hamming_threshold 12 "E:\BaiduNetdiskDownload\备份\250608\[ねいさん]\4. 画集"
-2025-06-09 19:11:25 | 0:00:10.501348 | ℹ️ INFO     | hashu.utils.hash_process_config:process_duplicates:299 - [#process_log]❌ 去重复失败，返回码: 1
-2025-06-09 19:11:25 | 0:00:10.502349 | ℹ️ INFO     | hashu.utils.hash_process_config:process_artist_folder:211 - [#process_log]执行哈希预热命令:  "hashpre" --workers 2 --path "E:\BaiduNetdiskDownload\备份\250608\[郁村 (郁)]"
-2025-06-09 19:11:28 | 0:00:13.334780 | ℹ️ INFO     | hashu.utils.hash_process_config:process_artist_folder:226 - [#update_log]✅ 找到哈希文件: E:\BaiduNetdiskDownload\备份\250608\[郁村 (郁)]\image_hashes.json
-2025-06-09 19:11:28 | 0:00:13.334780 | ℹ️ INFO     | hashu.utils.hash_process_config:process_duplicates:285 - [#process_log]执行去重复命令:  "batchfilter" --hash_file "E:\BaiduNetdiskDownload\备份\250608\[郁村 (郁)]\image_hashes.json" --max_workers 2 --enable_duplicate_filter --duplicate_filter_mode hash --ref_hamming_threshold 12 "E:\BaiduNetdiskDownload\备份\250608\[郁村 (郁)]\3. 画集"

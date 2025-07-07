@@ -1,4 +1,0 @@
-2025-06-08 04:44:22 | 0:00:00.383490 | ℹ️ INFO     | __main__:setup_logger:77 - 日志系统已初始化，应用名称: artfilter
-2025-06-08 04:44:28 | 0:00:06.082355 | ℹ️ INFO     | hashu.utils.hash_process_config:process_artist_folder:211 - [#process_log]执行哈希预热命令:  "hashpre" --workers 2 --path "E:\999EHV\[臨終サーカス (はぐはぐ)]"
-2025-06-08 04:47:13 | 0:02:51.120226 | ℹ️ INFO     | hashu.utils.hash_process_config:process_artist_folder:226 - [#update_log]✅ 找到哈希文件: E:\999EHV\[臨終サーカス (はぐはぐ)]\image_hashes.json
-2025-06-08 04:47:13 | 0:02:51.120226 | ℹ️ INFO     | hashu.utils.hash_process_config:process_duplicates:285 - [#process_log]执行去重复命令:  "batchfilter" --hash_file "E:\999EHV\[臨終サーカス (はぐはぐ)]\image_hashes.json" --max_workers 2 --enable_duplicate_filter --duplicate_filter_mode hash --ref_hamming_threshold 24 "E:\999EHV\[臨終サーカス (はぐはぐ)]\6. 画集"

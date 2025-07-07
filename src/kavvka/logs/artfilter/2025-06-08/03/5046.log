@@ -1,3 +1,0 @@
-2025-06-08 03:50:46 | 0:00:00.237084 | ℹ️ INFO     | __main__:setup_logger:77 - 日志系统已初始化，应用名称: artfilter
-2025-06-08 03:50:54 | 0:00:08.769196 | ℹ️ INFO     | hashu.utils.hash_process_config:process_artist_folder:211 - [#process_log]执行哈希预热命令:  "hashpre" --workers 2 --path "E:\BaiduNetdiskDownload\备份\[MonsieuR (MUK)]"
-2025-06-08 03:50:57 | 0:00:11.358318 | ℹ️ INFO     | hashu.utils.hash_process_config:process_artist_folder:229 - [#process_log]❌ 未能获取最新的哈希文件路径
