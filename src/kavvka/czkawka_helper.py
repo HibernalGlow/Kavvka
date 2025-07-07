@@ -236,12 +236,12 @@ def save_to_intro_md(paths_str: str, output_file: Path) -> bool:
         logging.error(f"保存路径到文件时出错: {e}")
         return False
 
-def process_folder_for_czkawka(base_path: Path, output_file: Path) -> Tuple[bool, Optional[str]]:
+def process_folder_for_czkawka(base_path: Path, output_file: Optional[Path] = None) -> Tuple[bool, Optional[str]]:
     """处理文件夹，准备czkawka路径
     
     Args:
         base_path: 基础路径
-        output_file: 输出文件路径
+        output_file: 输出文件路径，如果为None则使用默认路径
         
     Returns:
         Tuple[bool, Optional[str]]: 
@@ -288,9 +288,10 @@ def process_folder_for_czkawka(base_path: Path, output_file: Path) -> Tuple[bool
         # 生成czkawka路径字符串
         paths_str = generate_czkawka_paths(artist_folder, compare_folder)
         
-        # 保存路径字符串到输出文件
-        if not save_to_intro_md(paths_str, output_file):
-            return False, paths_str
+        # 如果提供了输出文件路径，保存路径字符串
+        if output_file:
+            if not save_to_intro_md(paths_str, output_file):
+                return False, paths_str
         
         return True, paths_str
         
@@ -314,20 +315,13 @@ def main():
         logging.error(f"基础路径不存在: {base_path}")
         return
         
-    # 获取输出文件路径
+    # 获取输出文件路径（可选）
     output_file = None
     if len(sys.argv) > 2:
         output_file = Path(sys.argv[2])
     else:
         # 默认输出到intro.md
         output_file = Path(__file__).parent / "doc" / "intro.md"
-    
-    # 确保输出目录存在
-    try:
-        os.makedirs(output_file.parent, exist_ok=True)
-    except Exception as e:
-        logging.error(f"无法创建输出目录: {e}")
-        return
         
     # 处理文件夹
     success, paths_str = process_folder_for_czkawka(base_path, output_file)

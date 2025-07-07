@@ -38,53 +38,6 @@ def show_header():
         border_style="green"
     ))
 
-def get_artist_folder_from_path(path: Path) -> Optional[Path]:
-    """从给定路径获取画师文件夹（交互式）
-    
-    Args:
-        path: 输入路径（可以是压缩包或文件夹）
-        
-    Returns:
-        Optional[Path]: 画师文件夹路径
-    """
-    try:
-        path = Path(path).resolve()
-        
-        # 如果是压缩包，使用其所在目录
-        if path.is_file() and path.suffix.lower() in ['.zip', '.7z', '.rar']:
-            base_path = path.parent
-        else:
-            base_path = path
-            
-        # 向上查找画师文件夹
-        current_path = base_path
-        while current_path != current_path.parent:
-            if is_artist_folder(current_path):
-                if current_path.exists():
-                    console.print(f"[green]✓[/green] 找到画师文件夹: [cyan]{current_path}[/cyan]")
-                    if Confirm.ask(f"是否使用该画师文件夹?", default=True):
-                        return current_path
-                    else:
-                        break  # 继续搜索当前目录下的其他画师文件夹
-            current_path = current_path.parent
-        
-        # 如果向上查找没有找到或用户拒绝了，则搜索当前目录下的画师文件夹
-        artist_folders = []
-        for entry in base_path.iterdir():
-            if entry.is_dir() and is_artist_folder(entry):
-                artist_folders.append(entry)
-                    
-        if not artist_folders:
-            console.print(f"[bold red]❌ 在路径 {base_path} 下未找到画师文件夹[/bold red]")
-            return None
-            
-        # 使用select_artist_folder函数选择画师文件夹
-        return select_artist_folder(artist_folders)
-                
-    except Exception as e:
-        console.print(f"[bold red]❌ 获取画师文件夹时出错: {str(e)}[/bold red]")
-        return None
-
 def select_artist_folder(artist_folders: List[Path]) -> Path:
     """让用户选择一个画师文件夹
     
@@ -111,23 +64,17 @@ def select_artist_folder(artist_folders: List[Path]) -> Path:
     
     # 让用户选择
     while True:
-        choice = Prompt.ask("请选择画师文件夹编号或直接输入路径", default="1")
+        choice = Prompt.ask("请选择画师文件夹编号", default="1")
         try:
             index = int(choice) - 1
             if 0 <= index < len(artist_folders):
-                folder = artist_folders[index]
-                console.print(f"[green]✓[/green] 已选择: [cyan]{folder}[/cyan]")
-                if Confirm.ask("确认使用该画师文件夹?", default=True):
-                    return folder
-                else:
-                    continue
+                return artist_folders[index]
             else:
                 console.print("[bold red]❌ 无效的选择，请重试[/bold red]")
         except ValueError:
             # 检查是否输入了路径
             path = Path(choice)
             if path.exists() and is_artist_folder(path):
-                console.print(f"[green]✓[/green] 已选择: [cyan]{path}[/cyan]")
                 return path
             console.print("[bold red]❌ 请输入有效的数字或画师文件夹路径[/bold red]")
 
@@ -154,14 +101,14 @@ def get_folder_path_interactive() -> Optional[Path]:
         else:
             console.print(f"[bold red]❌ 路径不存在或不是文件夹: {path}[/bold red]")
 
-def get_output_path_interactive(default_path: Path) -> Path:
+def get_output_path_interactive(default_path: Path) -> Optional[Path]:
     """交互式获取输出文件路径
     
     Args:
         default_path: 默认输出路径
         
     Returns:
-        Path: 选择的输出路径，如果使用默认路径则返回default_path
+        Optional[Path]: 选择的输出路径，如果使用默认路径则返回default_path
     """
     console.print(f"[cyan]默认输出文件路径: [/cyan][green]{default_path}[/green]")
     if Confirm.ask("是否使用默认输出路径?", default=True):
@@ -184,12 +131,12 @@ def get_output_path_interactive(default_path: Path) -> Path:
         except Exception as e:
             console.print(f"[bold red]❌ 无法创建输出目录: {e}[/bold red]")
 
-def process_folder_interactive(base_path: Path, output_file: Path) -> Tuple[bool, Optional[str]]:
+def process_folder_interactive(base_path: Path, output_file: Optional[Path] = None) -> Tuple[bool, Optional[str]]:
     """交互式处理文件夹
     
     Args:
         base_path: 基础路径
-        output_file: 输出文件路径
+        output_file: 输出文件路径，如果为None则使用默认路径
         
     Returns:
         Tuple[bool, Optional[str]]: 
@@ -200,14 +147,18 @@ def process_folder_interactive(base_path: Path, output_file: Path) -> Tuple[bool
         # 显示处理的路径
         console.print(f"处理路径: [cyan]{base_path}[/cyan]")
         
-        # 使用原有逻辑获取画师文件夹
+        # 查找画师文件夹
         with console.status("[cyan]查找画师文件夹中...[/cyan]", spinner="dots"):
-            artist_folder = get_artist_folder_from_path(base_path)
+            artist_folders = find_artist_folders(base_path)
         
-        if not artist_folder:
+        if not artist_folders:
             console.print("[bold red]❌ 未找到画师文件夹[/bold red]")
             return False, None
         
+        console.print(f"[green]✓[/green] 找到 [cyan]{len(artist_folders)}[/cyan] 个画师文件夹")
+        
+        # 选择画师文件夹
+        artist_folder = select_artist_folder(artist_folders)
         console.print(f"[green]✓[/green] 已选择画师文件夹: [cyan]{artist_folder}[/cyan]")
         
         # 创建比较文件夹
@@ -238,16 +189,18 @@ def process_folder_interactive(base_path: Path, output_file: Path) -> Tuple[bool
         paths_str = generate_czkawka_paths(artist_folder, compare_folder)
         console.print(f"[green]✓[/green] 生成路径: [cyan]{paths_str}[/cyan]")
         
-        # 保存路径字符串到输出文件
-        with console.status(f"[cyan]保存路径到 {output_file} 中...[/cyan]", spinner="dots"):
-            success = save_to_intro_md(paths_str, output_file)
+        # 如果提供了输出文件路径，保存路径字符串
+        if output_file:
+            with console.status(f"[cyan]保存路径到 {output_file} 中...[/cyan]", spinner="dots"):
+                success = save_to_intro_md(paths_str, output_file)
+            
+            if success:
+                console.print(f"[green]✓[/green] 已保存路径到: [cyan]{output_file}[/cyan]")
+            else:
+                console.print(f"[bold red]❌ 保存路径到 {output_file} 失败[/bold red]")
+                return False, paths_str
         
-        if success:
-            console.print(f"[green]✓[/green] 已保存路径到: [cyan]{output_file}[/cyan]")
-            return True, paths_str
-        else:
-            console.print(f"[bold red]❌ 保存路径到 {output_file} 失败[/bold red]")
-            return False, paths_str
+        return True, paths_str
         
     except Exception as e:
         console.print(f"[bold red]❌ 处理文件夹时出错: {str(e)}[/bold red]")
@@ -256,7 +209,7 @@ def process_folder_interactive(base_path: Path, output_file: Path) -> Tuple[bool
 @app.command()
 def process(
     path: Optional[Path] = typer.Argument(None, help="要处理的基础路径"),
-    output: Optional[str] = typer.Option(None, "--output", "-o", help="输出文件路径（默认为src/kavvka/doc/intro.md）"),
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="输出文件路径（默认为src/kavvka/doc/intro.md）"),
     interactive: bool = typer.Option(True, "--interactive/--no-interactive", "-i/-n", help="是否使用交互式模式"),
 ):
     """处理文件夹，准备czkawka路径"""
@@ -279,41 +232,28 @@ def process(
         return 1
     
     # 获取输出文件路径（可选）
-    output_file = None
     if output is None:
         # 默认输出到intro.md
         module_path = Path(__file__).parent
         default_output = module_path / "doc" / "intro.md"
         
         if interactive:
-            output_file = get_output_path_interactive(default_output)
+            output = get_output_path_interactive(default_output)
         else:
-            output_file = default_output
-    else:
-        output_file = Path(output)
-        
-        # 确保父目录存在
-        try:
-            os.makedirs(output_file.parent, exist_ok=True)
-        except Exception as e:
-            if interactive:
-                console.print(f"[bold red]❌ 无法创建输出目录: {e}[/bold red]")
-            else:
-                print(f"❌ 无法创建输出目录: {e}")
-            return 1
+            output = default_output
     
     # 根据模式处理文件夹
     if interactive:
-        success, paths_str = process_folder_interactive(base_path, output_file)
+        success, paths_str = process_folder_interactive(base_path, output)
     else:
         from .czkawka_helper import process_folder_for_czkawka
-        success, paths_str = process_folder_for_czkawka(base_path, output_file)
+        success, paths_str = process_folder_for_czkawka(base_path, output)
     
     # 显示结果
     if success:
         if interactive:
             console.print("\n[bold green]✅ 处理成功！[/bold green]")
-            console.print(f"路径已保存到: [cyan]{output_file}[/cyan]")
+            console.print(f"路径已保存到: [cyan]{output}[/cyan]")
             console.print(f"生成的路径: [cyan]{paths_str}[/cyan]")
             
             # 显示如何在Czkawka中使用
@@ -323,7 +263,7 @@ def process(
             console.print(f"   [cyan]{paths_str}[/cyan]")
             console.print("3. 使用Czkawka的重复文件或相似图片功能进行比较")
         else:
-            print(f"✅ 处理成功！路径已保存到: {output_file}")
+            print(f"✅ 处理成功！路径已保存到: {output}")
             print(f"生成的路径: {paths_str}")
         return 0
     else:
