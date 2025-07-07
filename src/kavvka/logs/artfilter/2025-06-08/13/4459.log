@@ -1,0 +1,5 @@
+2025-06-08 13:44:59 | 0:00:00.607888 | ℹ️ INFO     | __main__:setup_logger:77 - 日志系统已初始化，应用名称: artfilter
+2025-06-08 13:45:02 | 0:00:03.667675 | ℹ️ INFO     | hashu.utils.hash_process_config:process_artist_folder:211 - [#process_log]执行哈希预热命令:  "hashpre" --workers 2 --path "E:\BaiduNetdiskDownload\备份\[MonsieuR (MUK)]"
+2025-06-08 13:45:07 | 0:00:09.248375 | ℹ️ INFO     | hashu.utils.hash_process_config:process_artist_folder:226 - [#update_log]✅ 找到哈希文件: E:\BaiduNetdiskDownload\备份\[MonsieuR (MUK)]\image_hashes.json
+2025-06-08 13:45:07 | 0:00:09.249385 | ℹ️ INFO     | hashu.utils.hash_process_config:process_duplicates:285 - [#process_log]执行去重复命令:  "batchfilter" --hash_file "E:\BaiduNetdiskDownload\备份\[MonsieuR (MUK)]\image_hashes.json" --max_workers 2 --enable_duplicate_filter --duplicate_filter_mode hash --ref_hamming_threshold 24 "E:\BaiduNetdiskDownload\备份\[MonsieuR (MUK)]\4. 画集"
+2025-06-08 14:45:07 | 1:00:09.318811 | ℹ️ INFO     | hashu.utils.hash_process_config:process_duplicates:302 - [#process_log]❌ 去重复处理超时（1小时）

@@ -1,0 +1,16 @@
+[project]
+name = "kavvka"
+version = "0.1.0"
+description = "Czkawka辅助工具，用于处理图片文件夹并生成路径"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pathlib",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project.scripts]
+kavvka = "kavvka.__main__:main"

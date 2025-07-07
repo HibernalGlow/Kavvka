@@ -1,0 +1,5 @@
+2025-06-18 17:58:34 | 0:00:00.377482 | ℹ️ INFO     | artfilter.__main__:setup_logger:92 - 日志系统已初始化，应用名称: artfilter
+2025-06-18 17:58:34 | 0:00:00.380073 | ℹ️ INFO     | artfilter.__main__:load_config:118 - ✅ 已加载配置文件: D:\1VSCODE\Projects\ImageAll\ImageFilter\src\artfilter\config.json
+2025-06-18 17:58:40 | 0:00:06.526664 | ℹ️ INFO     | hashu.utils.hash_process_config:process_artist_folder:211 - [#process_log]执行哈希预热命令:  "hashpre" --workers 2 --path "E:\BaiduNetdiskDownload\备份\250613\[捕食少女 (カラスちゃん)]"
+2025-06-18 18:00:27 | 0:01:53.619372 | ℹ️ INFO     | hashu.utils.hash_process_config:process_artist_folder:226 - [#update_log]✅ 找到哈希文件: E:\BaiduNetdiskDownload\备份\250613\[捕食少女 (カラスちゃん)]\image_hashes.json
+2025-06-18 18:00:27 | 0:01:53.619372 | ℹ️ INFO     | hashu.utils.hash_process_config:process_duplicates:285 - [#process_log]执行去重复命令:  "batchfilter" --hash_file "E:\BaiduNetdiskDownload\备份\250613\[捕食少女 (カラスちゃん)]\image_hashes.json" --max_workers 2 --enable_duplicate_filter --duplicate_filter_mode hash --ref_hamming_threshold 8 "E:\BaiduNetdiskDownload\备份\250613\[捕食少女 (カラスちゃん)]\4. 画集"
