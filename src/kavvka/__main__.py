@@ -618,12 +618,20 @@ def process(
     
     # 用于收集所有处理结果的JSON数据
     all_results = {
+        "all_combined_paths": [] , # 新增：收集所有combined_path
         "total_paths": total_count,
         "success_count": 0,
-        "results": []
+        "results": [],
     }
     
+    # 记录第一个输入的文件夹路径，用于保存JSON文件
+    first_artist_folder = None
+    
     for i, (path, (artist_folder, siblings)) in enumerate(path_to_artist.items(), 1):
+        # 记录第一个画师文件夹
+        if i == 1:
+            first_artist_folder = artist_folder
+            
         console.rule(f"[bold blue]处理第 {i}/{total_count} 个路径[/bold blue]")
         console.print(f"[cyan]路径:[/cyan] [white]{path}[/white]")
         console.print(f"[cyan]画师文件夹:[/cyan] [green]{artist_folder}[/green]")
@@ -657,6 +665,9 @@ def process(
         path_result["czkawka_paths"] = paths_data
         display_path_panel(paths_data)
         
+        # 收集combined_path
+        all_results["all_combined_paths"].append(paths_data["combined_path"])
+        
         # 更新成功状态
         path_result["success"] = True
         success_count += 1
@@ -675,16 +686,63 @@ def process(
     console.print(f"\n[bold green]✅ 所有处理完成: 成功 {success_count}/{total_count}[/bold green]")
     
     # 如果需要，输出完整的JSON结果
-    if output_json:
-        console.print("\n[bold cyan]完整处理结果 (JSON):[/bold cyan]")
-        console.print(JSON.from_data(all_results))
+    if output_json or True:  # 默认总是输出JSON
+        # console.print("\n[bold cyan]完整处理结果 (JSON):[/bold cyan]")
+        # console.print(JSON.from_data(all_results))
         
         # 将JSON结果保存到文件
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        json_file = Path(f"kavvka_result_{timestamp}.json")
+        
+        # 确定保存路径：第一个画师文件夹下
+        if first_artist_folder:
+            json_file = first_artist_folder / f"kavvka_result_{timestamp}.json"
+        else:
+            json_file = Path(f"kavvka_result_{timestamp}.json")
+            
         with open(json_file, "w", encoding="utf-8") as f:
             json.dump(all_results, f, ensure_ascii=False, indent=2)
         console.print(f"[green]✅ 结果已保存到文件: {json_file}[/green]")
+        
+        # 生成并显示所有combined_path的合并结果
+        if all_results["all_combined_paths"]:
+            # 使用三引号格式化输出，每行一个路径
+            all_paths = "\n".join(all_results["all_combined_paths"])
+            
+            console.print("\n[bold cyan]所有Czkawka路径合集:[/bold cyan]")
+            console.print("[bold green]===== 复制以下内容 =====[/bold green]")
+            print(all_paths)  # 直接使用print，不带任何格式化，便于复制
+            console.print("[bold green]======================[/bold green]")
+            
+            # 复制所有路径到剪贴板
+            try:
+                pyperclip.copy(all_paths)
+                console.print("[green]✅ 所有路径已复制到剪贴板[/green]")
+            except Exception as e:
+                logger.error(f"❌ 复制到剪贴板失败: {e}")
+
+            # 新增：保存一份 toml 文件，使用三引号保存所有路径
+            try:
+                import toml
+            except ImportError:
+                console.print("[yellow]未安装 toml，正在尝试安装...[/yellow]")
+                subprocess.run([sys.executable, '-m', 'pip', 'install', 'toml'])
+                import toml
+            
+            # 生成单个路径集合（按分号拆分）
+            single_paths = []
+            for combined_path in all_results["all_combined_paths"]:
+                # 按分号拆分每个合并路径
+                paths_in_combined = combined_path.split(';')
+                single_paths.extend(paths_in_combined)
+            
+            single_paths_str = "\n".join(single_paths)
+            
+            # 保存到同一个 toml 文件，包含两个字段
+            toml_file = str(json_file).replace('.json', '.toml')
+            with open(toml_file, 'w', encoding='utf-8') as f:
+                f.write(f'all_combined_paths = """\n{all_paths}\n"""\n\n')
+                f.write(f'single_paths = """\n{single_paths_str}\n"""\n')
+            console.print(f"[green]✅ 路径合集已保存为 toml 文件: {toml_file}[/green]")
     
     return all_results
 
