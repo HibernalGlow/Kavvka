@@ -548,23 +548,23 @@ def batch_get_artist_folders(paths: List[str]) -> dict:
     
     return result
 
-def generate_czkawka_paths(artist_folder: Path, compare_folder: Path) -> Dict[str, Any]:
+def generate_czkawka_paths(input_folder: Path, compare_folder: Path) -> Dict[str, Any]:
     """生成czkawka路径字符串（用分号连接）
     
     Args:
-        artist_folder: 画师文件夹路径
+        input_folder: 输入的路径（画集文件夹）
         compare_folder: 比较文件夹路径
         
     Returns:
         Dict[str, Any]: 包含路径信息的JSON格式数据
     """
     # 确保路径字符串不包含转义字符问题
-    artist_path = str(artist_folder).replace('\\', '/')
+    input_path = str(input_folder).replace('\\', '/')
     compare_path = str(compare_folder).replace('\\', '/')
-    paths_str = f"{artist_path};{compare_path}"
+    paths_str = f"{input_path};{compare_path}"
     
     return {
-        "artist_folder": artist_path,
+        "input_folder": input_path,
         "compare_folder": compare_path,
         "combined_path": paths_str
     }
@@ -660,8 +660,8 @@ def process(
         if move_result["success"]:
             console.print(f"[green]✅ 已移动 {len(move_result['moved_folders'])} 个文件夹到比较文件夹[/green]")
         
-        # 生成czkawka路径字符串并显示
-        paths_data = generate_czkawka_paths(artist_folder, compare_folder)
+        # 生成czkawka路径字符串并显示（使用输入路径而不是画师文件夹）
+        paths_data = generate_czkawka_paths(Path(path), compare_folder)
         path_result["czkawka_paths"] = paths_data
         display_path_panel(paths_data)
         
@@ -737,11 +737,13 @@ def process(
             
             single_paths_str = "\n".join(single_paths)
             
-            # 保存到同一个 toml 文件，包含两个字段
+            # 保存到同一个 toml 文件，包含三个字段
             toml_file = str(json_file).replace('.json', '.toml')
+            single_paths_joined = ";".join(single_paths)
             with open(toml_file, 'w', encoding='utf-8') as f:
                 f.write(f'all_combined_paths = """\n{all_paths}\n"""\n\n')
-                f.write(f'single_paths = """\n{single_paths_str}\n"""\n')
+                f.write(f'single_paths = """\n{single_paths_str}\n"""\n\n')
+                f.write(f'single_paths_joined = """\n{single_paths_joined}\n"""\n')
             console.print(f"[green]✅ 路径合集已保存为 toml 文件: {toml_file}[/green]")
     
     return all_results
